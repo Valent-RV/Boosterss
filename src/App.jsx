@@ -1,4 +1,7 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom"
+import Login from "./pages/Login"
+import Register from "./pages/Register"
+import ForgotPassword from "./pages/ForgotPassword"
 
 import Layout from "./components/Layout"
 import Home from "./pages/Home"
@@ -14,19 +17,21 @@ function App(){
 
     <Routes>
 
-      {/* 🔥 ГОЛОВНЕ */}
-      <Route path="/" element={<Layout />}>
+  <Route path="/" element={<Layout/>}>
+    <Route index element={<Home/>} />
+    <Route path="inbox" element={<Inbox/>} />
+    <Route path="search" element={<Search/>} />
+    <Route path="explore" element={<Explore/>} />
+    <Route path="history" element={<History/>} />
+    <Route path="settings" element={<Settings/>} />
+  </Route>
 
-        <Route index element={<Home />} />
-        <Route path="inbox" element={<Inbox />} />
-        <Route path="search" element={<Search />} />
-        <Route path="explore" element={<Explore />} />
-        <Route path="history" element={<History />} />
-        <Route path="settings" element={<Settings />} />
+  {/* 🔥 ОКРЕМО */}
+  <Route path="/login" element={<Login />} />
+  <Route path="/register" element={<Register />} />
+  <Route path="/forgot" element={<ForgotPassword />} />
 
-      </Route>
-
-    </Routes>
+</Routes>
 
   </BrowserRouter>
  )
