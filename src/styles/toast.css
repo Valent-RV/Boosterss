@@ -1,0 +1,19 @@
+.toast{
+ position:fixed;
+ top:20px;
+ right:20px;
+ background:#4CAF50;
+ color:white;
+ padding:12px 20px;
+ border-radius:8px;
+ box-shadow:0 0 10px rgba(0,0,0,0.2);
+ font-weight:bold;
+ animation:fadeInOut 2s ease;
+}
+
+@keyframes fadeInOut{
+ 0%{opacity:0; transform:translateY(-10px)}
+ 10%{opacity:1}
+ 90%{opacity:1}
+ 100%{opacity:0; transform:translateY(-10px)}
+}

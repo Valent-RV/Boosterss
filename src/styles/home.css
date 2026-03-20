@@ -1,0 +1,226 @@
+body{
+ margin:0;
+ font-family:Arial;
+ background:#f4f4f4;
+}
+
+/* ===== LAYOUT ===== */
+
+.home{
+ display:flex;
+ height:100vh;
+}
+
+.main{
+ flex:1;
+ display:flex;
+ flex-direction:column;
+}
+
+/* ===== SIDEBAR ===== */
+
+.sidebar{
+ width:220px;
+ background:#f0f0f0;
+ padding:20px;
+}
+
+.avatar{
+ width:60px;
+ height:60px;
+ border-radius:50%;
+ object-fit:cover;
+ margin-bottom:30px;
+ cursor:pointer;
+}
+
+.menuItem{
+ display:flex;
+ align-items:center;
+ gap:10px;
+ padding:10px;
+ border-radius:6px;
+ cursor:pointer;
+}
+
+.menuItem:hover{
+ background:#e5e5e5;
+}
+
+.menuItem.active{
+ background:#d6c8ff;
+}
+
+.menuItem img{
+ width:20px;
+ height:20px;
+}
+
+/* ===== TOPBAR ===== */
+
+.topbar{
+ display:flex;
+ align-items:center;
+ gap:20px;
+ padding:12px 20px;
+ background:white;
+ border-bottom:1px solid #ddd;
+}
+
+/* SEARCH */
+
+.searchBox{
+ flex:1;
+ display:flex;
+}
+
+.searchBox input{
+ flex:1;
+ padding:10px;
+ border:1px solid #ccc;
+ border-radius:6px 0 0 6px;
+ outline:none;
+}
+
+.searchBox button{
+ padding:10px 15px;
+ border:none;
+ background:#8b5cf6;
+ color:white;
+ border-radius:0 6px 6px 0;
+ cursor:pointer;
+}
+
+/* LOCATION */
+
+.locationBox{
+ position:relative;
+}
+
+.location{
+ background:black;
+ color:white;
+ padding:8px 12px;
+ border-radius:6px;
+ cursor:pointer;
+ white-space:nowrap;
+}
+
+.cityDropdown{
+ position:absolute;
+ top:40px;
+ right:0;
+ width:180px;
+ background:white;
+ border-radius:8px;
+ box-shadow:0 0 10px rgba(0,0,0,0.15);
+ max-height:250px;
+ overflow-y:auto;
+ z-index:10;
+}
+
+.cityItem{
+ padding:10px;
+ cursor:pointer;
+}
+
+.cityItem:hover{
+ background:#eee;
+}
+
+/* ===== CONTENT ===== */
+
+.contentArea{
+ flex:1;
+ padding:20px;
+ display:flex;
+ gap:20px;
+}
+
+/* CENTER BLOCK */
+
+.center{
+ width:100%;
+ display:flex;
+ flex-direction:column;
+ gap:20px;
+}
+
+/* ===== BUTTON ===== */
+
+.createBtn{
+ padding:15px;
+ background:linear-gradient(90deg,#8b5cf6,#7c3aed);
+ color:white;
+ border:none;
+ border-radius:10px;
+ font-size:16px;
+ cursor:pointer;
+ transition:0.2s;
+}
+
+.createBtn:hover{
+ opacity:0.9;
+}
+
+/* ===== CHAT ===== */
+
+.chat{
+ background:white;
+ padding:15px;
+ border-radius:8px;
+ border-bottom:1px solid #ddd;
+ cursor:pointer;
+}
+
+.chat:hover{
+ background:#f9f9f9;
+}
+
+/* ===== SERVICES (EXPLORE) ===== */
+
+.services{
+ flex:1;
+ display:grid;
+ grid-template-columns:1fr 1fr;
+ gap:20px;
+}
+
+.card{
+ background:white;
+ padding:15px;
+ border-radius:8px;
+ box-shadow:0 0 5px rgba(0,0,0,0.1);
+}
+
+/* ===== FILTERS ===== */
+
+.filtersPanel{
+ width:220px;
+}
+
+.filtersHeader{
+ background:#d8dce6;
+ padding:12px;
+ border-radius:8px;
+ cursor:pointer;
+}
+
+.filtersContent{
+ background:white;
+ padding:15px;
+ margin-top:10px;
+ border-radius:8px;
+ display:flex;
+ flex-direction:column;
+ gap:10px;
+}
+
+.avatar{
+ width:60px;
+ height:60px;
+ background:#ccc; /* 🔥 сірий */
+ border-radius:50%;
+ margin-bottom:30px;
+ cursor:pointer;
+}
