@@ -21,15 +21,30 @@ function Login(){
   return regex.test(password)
  }
 
- const handleClick = () => {
-  if(validateEmail(email) && validatePassword(password)){
-    setShow(true)
+ const handleClick = async () => {
+    try {
+      const response = await fetch('http://localhost:3000/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ username: email, password: password })
+      });
 
-    setTimeout(()=>{
-      setShow(false)
-    },2000)
+      const data = await response.json();
+
+      if (response.ok) {
+        alert("Успішний вхід!"); 
+        navigate("/"); 
+      } else {
+        alert(data.message);
+      }
+
+    } catch (error) {
+      console.error("Помилка з'єднання:", error);
+      alert("Не вдалося з'єднатися з сервером");
+    }
   }
- }
 
  return(
 

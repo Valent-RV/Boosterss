@@ -22,21 +22,41 @@ function Register(){
   return regex.test(password)
  }
 
- const handleClick = () => {
+ const handleClick = async () => {
 
-  if(
-    validateEmail(email) &&
-    validatePassword(password) &&
-    password === repeat
-  ){
-    setShow(true)
+    if(
+      validateEmail(email) &&
+      validatePassword(password) &&
+      password === repeat
+    ){
+      try {
+        const response = await fetch('http://localhost:3000/register', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ username: email, password: password })
+        });
 
-    setTimeout(()=>{
-      setShow(false)
-    },2000)
+        const data = await response.json();
+
+        if (response.ok) {
+          setShow(true) 
+          
+          setTimeout(()=>{
+            setShow(false)
+            navigate("/login") 
+          }, 2000)
+        } else {
+          alert(data.message);
+        }
+
+      } catch (error) {
+        console.error("Помилка:", error);
+        alert("Не вдалося з'єднатися з сервером");
+      }
+    }
   }
-
- }
 
  return(
 
