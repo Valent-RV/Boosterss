@@ -1,17 +1,11 @@
-import "../styles/modal.css"
+import "../styles/modal.css";
 
-function Modal({message}){
-
- return(
-  <div className="modalOverlay">
-
-    <div className="modalBox">
-      {message}
+export default function Modal({ children }) {
+  return (
+    <div className="modalOverlay">
+      <div className="modalBox">
+        {children}
+      </div>
     </div>
-
-  </div>
- )
-
+  );
 }
-
-export default Modal
