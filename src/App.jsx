@@ -10,6 +10,7 @@ import Search from "./pages/Search"
 import Explore from "./pages/Explore"
 import History from "./pages/History"
 import Settings from "./pages/Settings"
+import RequestDetails from "./pages/RequestDetails"
 
 function App(){
  return(
@@ -24,6 +25,7 @@ function App(){
     <Route path="explore" element={<Explore/>} />
     <Route path="history" element={<History/>} />
     <Route path="settings" element={<Settings/>} />
+    <Route path="request/:id" element={<RequestDetails/>} />
   </Route>
 
   {/* 🔥 ОКРЕМО */}
