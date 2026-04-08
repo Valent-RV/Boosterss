@@ -4,7 +4,6 @@ const oracledb = require('oracledb');
 
 // ================= ORACLE THICK MODE =================
 try {
-    // Шлях до папки bin твого локального Oracle
     oracledb.initOracleClient({ libDir: 'C:\\oraclexe\\app\\oracle\\product\\11.2.0\\server\\bin' });
     console.log("✅ Oracle Thick mode увімкнено");
 } catch (err) {
@@ -26,7 +25,6 @@ const dbConfig = {
     connectString: "localhost:1521/XE"
 };
 
-// Створюємо пул з'єднань (це швидше і надійніше, ніж підключатися щоразу з нуля)
 async function initDb() {
     try {
         await oracledb.createPool(dbConfig);
@@ -36,7 +34,7 @@ async function initDb() {
     }
 }
 
-// ================= USERS (БАЗА ДАНИХ) =================
+// ================= USERS =================
 
 app.post('/register', async (req, res) => {
     let connection;
@@ -46,7 +44,6 @@ app.post('/register', async (req, res) => {
 
         connection = await oracledb.getConnection();
         
-        // Шукаємо по колонці EMAIL
         const checkSql = `SELECT EMAIL FROM "TEST"."USERS" WHERE EMAIL = :username`;
         const checkResult = await connection.execute(checkSql, [username]);
 
@@ -88,7 +85,7 @@ app.post('/login', async (req, res) => {
     }
 });
 
-// ================= REQUESTS (БАЗА ДАНИХ) =================
+// ================= REQUESTS=================
 
 app.post('/create-request', async (req, res) => {
     const { title, description, date, price } = req.body;
@@ -105,13 +102,11 @@ app.post('/create-request', async (req, res) => {
         const numericPrice = price ? parseFloat(price.toString().replace(/\D/g, '')) : null;
         const jsDate = date ? new Date(date) : new Date();
 
-        // Записуємо в таблицю Work 
         await connection.execute(
             `INSERT INTO test.Work (ID, NomZam, DATEMOD, NEW) VALUES (:1, :2, :3, 1)`,
             [zamId, zamId, jsDate]
         );
 
-        // Записуємо в таблицю BASE_MAiN 
         await connection.execute(
             `INSERT INTO test.BASE_MAiN (ID, NOMZAM, NAmeZAm, OpysZAM, PriceZAM, DATA) 
              VALUES (:1, :2, :3, :4, :5, :6)`,
@@ -149,9 +144,8 @@ app.get('/requests', async (req, res) => {
 });
 
 
-// ================= RESPONSES (ТИМЧАСОВО В ПАМ'ЯТІ) =================
+// ================= RESPONSES =================
 
-// Масив для відгуків, поки немає таблиці в БД
 const companyResponses = []; 
 
 app.get('/request/:id', async (req, res) => {
@@ -172,7 +166,6 @@ app.get('/request/:id', async (req, res) => {
         
         const requestData = reqResult.rows[0];
         
-        // Фільтруємо відгуки з масиву саме для цієї заявки
         requestData.responses = companyResponses.filter(r => r.requestId == req.params.id);
         
         res.json(requestData);
@@ -190,7 +183,7 @@ app.post('/request/:id/respond', (req, res) => {
 
     const newResponse = {
         id: Date.now(),
-        requestId: parseInt(id), // Прив'язуємо відгук до ID заявки
+        requestId: parseInt(id), 
         company,
         text
     };
@@ -203,6 +196,6 @@ app.post('/request/:id/respond', (req, res) => {
 
 const PORT = 3000;
 app.listen(PORT, async () => {
-    await initDb(); // Запускаємо підключення до БД один раз при старті
+    await initDb(); 
     console.log(`🚀 Сервер успішно запущено на порту http://localhost:${PORT}`);
 });
