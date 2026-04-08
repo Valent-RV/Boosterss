@@ -1,138 +1,201 @@
 const express = require('express');
 const cors = require('cors');
-const app = express();
+const oracledb = require('oracledb');
 
-app.use(cors());
+// ================= ORACLE THICK MODE =================
+try {
+    oracledb.initOracleClient({ libDir: 'C:\\oraclexe\\app\\oracle\\product\\11.2.0\\server\\bin' });
+    console.log("✅ Oracle Thick mode увімкнено");
+} catch (err) {
+    console.error("❌ Помилка ініціалізації Thick mode:", err);
+}
+
+const app = express();
+app.use(cors({
+    origin: 'http://localhost:5173',
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    credentials: true
+}));
 app.use(express.json());
 
-const users = [];
+// ================= НАЛАШТУВАННЯ БАЗИ =================
+const dbConfig = {
+    user: "NDI",
+    password: "NDI",
+    connectString: "localhost:1521/XE"
+};
+
+async function initDb() {
+    try {
+        await oracledb.createPool(dbConfig);
+        console.log("✅ Пул з'єднань Oracle створено успішно!");
+    } catch (err) {
+        console.error("❌ Помилка створення пулу:", err);
+    }
+}
 
 // ================= USERS =================
 
-// реєстрація 
-app.post('/register', (req, res) => {
-    const { username, password } = req.body;
+app.post('/register', async (req, res) => {
+    let connection;
+    try {
+        const { username, password } = req.body;
+        if (!username || !password) return res.status(400).json({ message: "Логін та пароль обов'язкові!" });
 
-    const userExists = users.find(user => user.username === username);
-    if (userExists) {
-        return res.status(400).json({ message: "Такий користувач уже існує!" });
+        connection = await oracledb.getConnection();
+        
+        const checkSql = `SELECT EMAIL FROM "TEST"."USERS" WHERE EMAIL = :username`;
+        const checkResult = await connection.execute(checkSql, [username]);
+
+        if (checkResult.rows.length > 0) {
+            return res.status(400).json({ message: "Такий користувач уже існує!" });
+        }
+
+        const insertSql = `INSERT INTO "TEST"."USERS" (EMAIL, PASSWORD) VALUES (:username, :password)`;
+        await connection.execute(insertSql, { username, password }, { autoCommit: true });
+
+        res.status(201).json({ message: "Реєстрація успішна!" });
+    } catch (error) {
+        console.error("Помилка реєстрації:", error);
+        res.status(500).json({ message: "Внутрішня помилка сервера" });
+    } finally {
+        if (connection) await connection.close();
+    }
+});
+
+app.post('/login', async (req, res) => {
+    let connection;
+    try {
+        const { username, password } = req.body;
+        connection = await oracledb.getConnection();
+
+        const sql = `SELECT * FROM "TEST"."USERS" WHERE EMAIL = :username AND PASSWORD = :password`;
+        const result = await connection.execute(sql, { username, password });
+
+        if (result.rows.length === 0) {
+            return res.status(401).json({ message: "Неправильний логін або пароль!" });
+        }
+
+        res.status(200).json({ message: "Виконано вхід в систему!" });
+    } catch (error) {
+        console.error("Помилка логіну:", error);
+        res.status(500).json({ message: "Внутрішня помилка сервера" });
+    } finally {
+        if (connection) await connection.close();
+    }
+});
+
+// ================= REQUESTS=================
+
+app.post('/create-request', async (req, res) => {
+    const { title, description, date, price } = req.body;
+
+    if (!title || !description) {
+        return res.status(400).json({ message: "Назва і опис обов'язкові" });
     }
 
-    users.push({ username, password });
-    res.status(201).json({ message: "Реєстрація успішна!" });
+    let connection;
+    try {
+        connection = await oracledb.getConnection();
+        
+        const zamId = Math.floor(Date.now() / 1000); 
+        const numericPrice = price ? parseFloat(price.toString().replace(/\D/g, '')) : null;
+        const jsDate = date ? new Date(date) : new Date();
 
-    console.log("користувачі:", users);
-});
+        await connection.execute(
+            `INSERT INTO test.Work (ID, NomZam, DATEMOD, NEW) VALUES (:1, :2, :3, 1)`,
+            [zamId, zamId, jsDate]
+        );
 
-// логін
-app.post('/login', (req, res) => {
-    const { username, password } = req.body;
-    const user = users.find(user => user.username === username);
+        await connection.execute(
+            `INSERT INTO test.BASE_MAiN (ID, NOMZAM, NAmeZAm, OpysZAM, PriceZAM, DATA) 
+             VALUES (:1, :2, :3, :4, :5, :6)`,
+            [zamId, zamId, title, description, numericPrice, jsDate],
+            { autoCommit: true }
+        );
 
-    if (!user || user.password !== password) {
-        return res.status(401).json({ message: "Неправильний логін або пароль!" });
+        res.status(201).json({ message: "Заявка створена", id: zamId });
+    } catch (err) {
+        console.error("Помилка створення заявки:", err);
+        res.status(500).json({ message: "Помилка бази даних при створенні заявки" });
+    } finally {
+        if (connection) await connection.close();
     }
-
-    res.status(200).json({ message: "Виконано вхід в систему!" });
 });
 
-// ================= REQUESTS =================
-
-const requests = [
-  {
-    id: 1,
-    title: "Ремонт авто",
-    description: "Потрібно замінити гальмівні колодки та перевірити двигун.",
-    date: "2026-03-30T14:00",
-    price: "2000 ₴",
-    responses: [
-      { id: 1, company: "AutoFix", text: "Зробимо за 1800 грн сьогодні" },
-      { id: 2, company: "GaragePro", text: "Можемо завтра зранку" }
-    ]
-  },
-  {
-    id: 2,
-    title: "Прибирання квартири",
-    description: "Генеральне прибирання 2-кімнатної квартири.",
-    date: "2026-03-29T10:00",
-    price: "800 ₴",
-    responses: []
-  },
-  {
-    id: 3,
-    title: "Ремонт ноутбука",
-    description: "Ноутбук не вмикається, можливо проблема з батареєю.",
-    date: null,
-    price: null,
-    responses: [
-      { id: 1, company: "TechService", text: "Діагностика безкоштовна" }
-    ]
-  }
-];
-
-// створення заявки
-app.post('/create-request', (req, res) => {
-  const { title, description, date, price } = req.body;
-
-  if (!title || !description) {
-    return res.status(400).json({ message: "Назва і опис обов'язкові" });
-  }
-
-  const newRequest = {
-    id: Date.now(),
-    title,
-    description,
-    date: date || null,
-    price: price || null,
-    responses: []
-  };
-
-  requests.push(newRequest);
-
-  res.status(201).json({ message: "Заявка створена", request: newRequest });
+app.get('/requests', async (req, res) => {
+    let connection;
+    try {
+        connection = await oracledb.getConnection();
+        const result = await connection.execute(
+            `SELECT ID as "id", NAmeZAm as "title", OpysZAM as "description", 
+                    PriceZAM as "price", DATA as "date" 
+             FROM test.BASE_MAiN ORDER BY ID DESC`,
+            [],
+            { outFormat: oracledb.OUT_FORMAT_OBJECT } 
+        );
+        res.json(result.rows);
+    } catch (err) {
+        console.error("Помилка отримання заявок:", err);
+        res.status(500).json({ message: "Помилка бази даних" });
+    } finally {
+        if (connection) await connection.close();
+    }
 });
 
-// отримати всі заявки
-app.get('/requests', (req, res) => {
-  res.json([...requests].sort((a, b) => b.id - a.id));
+
+// ================= RESPONSES =================
+
+const companyResponses = []; 
+
+app.get('/request/:id', async (req, res) => {
+    let connection;
+    try {
+        connection = await oracledb.getConnection();
+        const reqResult = await connection.execute(
+            `SELECT ID as "id", NAmeZAm as "title", OpysZAM as "description", 
+                    PriceZAM as "price", DATA as "date" 
+             FROM test.BASE_MAiN WHERE ID = :1`,
+            [req.params.id],
+            { outFormat: oracledb.OUT_FORMAT_OBJECT }
+        );
+
+        if (reqResult.rows.length === 0) {
+            return res.status(404).json({ message: "Не знайдено" });
+        }
+        
+        const requestData = reqResult.rows[0];
+        
+        requestData.responses = companyResponses.filter(r => r.requestId == req.params.id);
+        
+        res.json(requestData);
+    } catch (err) {
+        console.error("Помилка отримання заявки:", err);
+        res.status(500).json({ message: "Помилка бази даних" });
+    } finally {
+        if (connection) await connection.close();
+    }
 });
 
-// отримати одну заявку
-app.get('/request/:id', (req, res) => {
-  const request = requests.find(r => r.id == req.params.id);
-
-  if (!request) {
-    return res.status(404).json({ message: "Не знайдено" });
-  }
-
-  res.json(request);
-});
-
-// додати response
 app.post('/request/:id/respond', (req, res) => {
-  const { id } = req.params;
-  const { company, text } = req.body;
+    const { id } = req.params;
+    const { company, text } = req.body;
 
-  const request = requests.find(r => r.id == id);
+    const newResponse = {
+        id: Date.now(),
+        requestId: parseInt(id), 
+        company,
+        text
+    };
 
-  if (!request) {
-    return res.status(404).json({ message: "Заявка не знайдена" });
-  }
-
-  const newResponse = {
-    id: Date.now(),
-    company,
-    text
-  };
-
-  request.responses.push(newResponse);
-
-  res.status(201).json({ message: "Відгук додано", response: newResponse });
+    companyResponses.push(newResponse);
+    res.status(201).json({ message: "Відгук додано", response: newResponse });
 });
 
-// ================= SERVER =================
+// ================= SERVER START =================
 
 const PORT = 3000;
-app.listen(PORT, () => {
-    console.log(`Сервер успішно запущено на порту http://localhost:${PORT}`);
+app.listen(PORT, async () => {
+    await initDb(); 
+    console.log(`🚀 Сервер успішно запущено на порту http://localhost:${PORT}`);
 });
