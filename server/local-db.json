@@ -1,0 +1,119 @@
+{
+  "users": [
+    {
+      "email": "demo@taskero.local",
+      "password": "123456",
+      "name": "Демо Користувач",
+      "role": "user"
+    },
+    {
+      "email": "ivan@taskero.local",
+      "password": "123456",
+      "name": "Іван Тестовий",
+      "role": "user"
+    }
+  ],
+  "companies": [
+    {
+      "email": "company@taskero.local",
+      "password": "123456",
+      "name": "Тест Компанія",
+      "role": "company",
+      "firmId": "1",
+      "cityId": "1",
+      "typeId": "1"
+    },
+    {
+      "email": "repair@taskero.local",
+      "password": "123456",
+      "name": "Ремонт Плюс",
+      "role": "company",
+      "firmId": "2",
+      "cityId": "2",
+      "typeId": "2"
+    }
+  ],
+  "cities": [
+    {
+      "id": "1",
+      "name": "Київ"
+    },
+    {
+      "id": "2",
+      "name": "Львів"
+    },
+    {
+      "id": "3",
+      "name": "Одеса"
+    }
+  ],
+  "types": [
+    {
+      "id": "1",
+      "name": "Прибирання"
+    },
+    {
+      "id": "2",
+      "name": "Ремонт"
+    },
+    {
+      "id": "3",
+      "name": "Перевезення"
+    }
+  ],
+  "requests": [
+    {
+      "id": "1778047346295",
+      "title": "Gjckeuf",
+      "description": "fndsjkfnjk",
+      "price": 1000,
+      "date": "2026-05-06T06:02:26.295Z",
+      "cityId": "2",
+      "cityName": "Львів",
+      "typeId": "1",
+      "typeName": "Прибирання",
+      "firmId": "",
+      "clientName": "Демо Користувач"
+    },
+    {
+      "id": "1001",
+      "title": "Прибрати квартиру",
+      "description": "Потрібне генеральне прибирання двокімнатної квартири.",
+      "price": 2500,
+      "date": "2026-05-06T12:00:00.000Z",
+      "cityId": "1",
+      "cityName": "Київ",
+      "typeId": "1",
+      "typeName": "Прибирання",
+      "firmId": "",
+      "clientName": "Демо Користувач",
+      "responseCount": 0
+    },
+    {
+      "id": "1002",
+      "title": "Підклеїти шпалери",
+      "description": "Треба акуратно підклеїти шпалери в кімнаті.",
+      "price": 1800,
+      "date": "2026-05-06T12:30:00.000Z",
+      "cityId": "2",
+      "cityName": "Львів",
+      "typeId": "2",
+      "typeName": "Ремонт",
+      "firmId": "",
+      "clientName": "Іван Тестовий",
+      "responseCount": 0
+    }
+  ],
+  "responses": [
+    {
+      "id": "1778047376257",
+      "zamId": "1778047346295",
+      "firmId": "1",
+      "text": "ansver sadioasmdkla 213123",
+      "createdAt": "2026-05-06T06:02:56.257Z",
+      "status": "pending",
+      "fromType": "company",
+      "companyName": "Тест Компанія"
+    }
+  ]
+}
