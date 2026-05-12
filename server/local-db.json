@@ -11,6 +11,20 @@
       "password": "123456",
       "name": "Іван Тестовий",
       "role": "user"
+    },
+    {
+      "email": "test@gmail.com",
+      "password": "ggfhfprGr4454",
+      "name": "test@gmail.com",
+      "role": "user",
+      "isVerified": true
+    },
+    {
+      "email": "test1@gmail.com",
+      "password": "ggfhfprGr4454",
+      "name": "test1@gmail.com",
+      "role": "user",
+      "isVerified": true
     }
   ],
   "companies": [

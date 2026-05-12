@@ -3,6 +3,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import cors from "cors";
 import express from "express";
+import nodemailer from "nodemailer";
+import crypto from "node:crypto";
 
 let oracledb = null;
 
@@ -12,6 +14,17 @@ try {
 } catch (error) {
   console.log("Oracle package not found, local mode enabled");
 }
+
+let transporter;
+nodemailer.createTestAccount().then((testAccount) => {
+  transporter = nodemailer.createTransport({
+    host: "smtp.ethereal.email",
+    port: 587,
+    secure: false,
+    auth: { user: testAccount.user, pass: testAccount.pass },
+  });
+  console.log("Тестова пошта готова!");
+});
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -64,6 +77,7 @@ function createLocalSeed() {
         password: "123456",
         name: "Тест Компанія",
         role: "company",
+        isVerified: true,
         firmId: "1",
         cityId: "1",
         typeId: "1"
@@ -73,6 +87,7 @@ function createLocalSeed() {
         password: "123456",
         name: "Ремонт Плюс",
         role: "company",
+        isVerified: true,
         firmId: "2",
         cityId: "2",
         typeId: "2"
@@ -244,38 +259,40 @@ app.post("/register", async (req, res) => {
   const email = String(req.body.email || "").trim().toLowerCase();
   const password = String(req.body.password || "").trim();
 
-  if (!email || !password) {
-    return res.status(400).json({ message: "Введіть email і пароль." });
-  }
-
   if (useLocalData || !dbReady) {
     const data = readLocalDb();
     const exists = data.users.find((item) => item.email === email);
 
-    if (exists) {
-      return res.status(400).json({ message: "Такий користувач уже є." });
-    }
+    if (exists) return res.status(400).json({ message: "Такий користувач уже існує." });
+
+    // токен
+    const verifyToken = crypto.randomBytes(20).toString('hex');
 
     const user = {
       email,
       password,
       name: email,
-      role: "user"
+      role: "user",
+      isVerified: false, 
+      verifyToken: verifyToken
     };
 
     data.users.push(user);
     writeLocalDb(data);
 
-    return res.status(201).json({
-      success: true,
-      user: {
-        email,
-        name: email,
-        role: "user"
-      }
-    });
-  }
+    // Відправляємо лист
+    const verifyUrl = `http://localhost:3001/verify-email?token=${verifyToken}`;
+    transporter.sendMail({
+      from: '"Taskero" <noreply@taskero.com>',
+      to: email,
+      subject: "Підтвердження реєстрації",
+      text: `Вітаємо! Перейдіть за посиланням, щоб підтвердити пошту: ${verifyUrl}`
+    }).then(info => console.log(" Лист підтвердження: %s", nodemailer.getTestMessageUrl(info)));
 
+    return res.status(201).json({ success: true, message: "Зареєстровано! Перевірте пошту." });
+  }
+  
+  
   let connection;
 
   try {
@@ -312,6 +329,22 @@ app.post("/register", async (req, res) => {
       await connection.close();
     }
   }
+  });
+
+  app.get("/verify-email", (req, res) => {
+  const token = req.query.token;
+  if (!token) return res.status(400).send("Токен відсутній.");
+
+  const data = readLocalDb();
+  const userIndex = data.users.findIndex(u => u.verifyToken === token);
+
+  if (userIndex === -1) return res.status(400).send("Недійсний токен.");
+
+  data.users[userIndex].isVerified = true;
+  delete data.users[userIndex].verifyToken;
+  writeLocalDb(data);
+
+  res.send("<h1>Користувача успішно підтверджено!</h1><p>Тепер ви можете увійти на сайт.</p>");
 });
 
 app.post("/login", async (req, res) => {
@@ -325,7 +358,9 @@ app.post("/login", async (req, res) => {
     if (!user) {
       return res.status(401).json({ message: "Неправильний логін або пароль." });
     }
-
+    
+    if (!user.isVerified) return res.status(403).json({ message: "Будь ласка, підтвердіть свою пошту!" });
+    
     return res.json({
       success: true,
       user: {
@@ -379,7 +414,11 @@ app.post("/company/login", async (req, res) => {
     );
 
     if (!company) {
-      return res.status(401).json({ message: "Неправильний логін або пароль." });
+      return res.status(401).json({ message: "Неправильний логін або пароль компанії." });
+    }
+
+    if (company.isVerified === false) {
+      return res.status(403).json({ message: "Компанія має підтвердити свою пошту!" });
     }
 
     return res.json({
@@ -388,9 +427,7 @@ app.post("/company/login", async (req, res) => {
         email: company.email,
         name: company.name,
         role: "company",
-        firmId: company.firmId,
-        cityId: company.cityId,
-        typeId: company.typeId
+        firmId: company.firmId
       }
     });
   }
@@ -431,6 +468,59 @@ app.post("/company/login", async (req, res) => {
       await connection.close();
     }
   }
+});
+
+app.post("/forgot-password", (req, res) => {
+  const email = String(req.body.email || "").trim().toLowerCase();
+  const data = readLocalDb();
+  
+  let account = data.users.find(u => u.email === email);
+  let isCompany = false;
+
+  if (!account) {
+    account = data.companies.find(c => c.email === email);
+    isCompany = true;
+  }
+
+  if (!account) {
+    return res.status(404).json({ message: "Акаунт з таким email не знайдено." });
+  }
+
+  const resetToken = crypto.randomBytes(20).toString('hex');
+  account.resetToken = resetToken;
+  writeLocalDb(data);
+
+  const resetUrl = `http://localhost:5173/reset-password?token=${resetToken}`;
+  transporter.sendMail({
+    from: '"Taskero" <noreply@taskero.com>',
+    to: email,
+    subject: "Скидання пароля",
+    text: `Привіт! Ви (або ваша компанія) запросили зміну пароля. Перейдіть сюди: ${resetUrl}`
+  }).then(info => console.log("🔗 Лист для %s: %s", isCompany ? "компанії" : "користувача", nodemailer.getTestMessageUrl(info)));
+
+  res.json({ success: true, message: "Інструкції відправлено на пошту." });
+});
+
+app.post("/reset-password", (req, res) => {
+  const { token, newPassword } = req.body;
+  if (!token || !newPassword) return res.status(400).json({ message: "Дані відсутні." });
+
+  const data = readLocalDb();
+  
+  let account = data.users.find(u => u.resetToken === token);
+  if (!account) {
+    account = data.companies.find(c => c.resetToken === token);
+  }
+
+  if (!account) {
+    return res.status(400).json({ message: "Токен недійсний або застарілий." });
+  }
+
+  account.password = newPassword;
+  delete account.resetToken;
+  writeLocalDb(data);
+
+  res.json({ success: true, message: "Пароль успішно змінено!" });
 });
 
 app.get("/requests", async (req, res) => {
@@ -845,7 +935,7 @@ app.post("/responses/reject", async (req, res) => {
 if (existsSync(distPath)) {
   app.use(express.static(distPath));
 
-  app.get("*", (req, res, next) => {
+  app.get(/.*/, (req, res, next) => {
     if (req.path.startsWith("/requests") || req.path.startsWith("/responses") || req.path === "/health") {
       return next();
     }
