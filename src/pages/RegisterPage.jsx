@@ -23,18 +23,20 @@ export default function RegisterPage() {
         },
         body: JSON.stringify(form)
       });
-      const data = await response.json();
+      const data = await response.json().catch(() => ({}));
 
       if (!response.ok) {
         console.log(data);
+        showToast("Помилка реєстрації", data.message || "Не вдалося створити акаунт.", "error");
         return;
       }
 
       setUser(data.user);
-      showToast("Успіх", "Реєстрація завершена.");
+      showToast("Успіх", data.message || "Реєстрація завершена.");
       navigate("/");
     } catch (error) {
       console.log(error);
+      showToast("Помилка реєстрації", "Сервер не відповідає. Запустіть проєкт через npm run dev.", "error");
     } finally {
       setAuthLoading(false);
     }
