@@ -13,13 +13,26 @@ const emptyRequestForm = {
   clientName: ""
 };
 
+const defaultCities = [
+  { id: "1", name: "Київ" },
+  { id: "2", name: "Львів" },
+  { id: "3", name: "Одеса" }
+];
+
+const defaultTypes = [
+  { id: "1", name: "Прибирання" },
+  { id: "2", name: "Ремонт" },
+  { id: "3", name: "Перевезення" }
+];
+
 export default function HomePage() {
   const { isCompany, showToast, user } = useApp();
   const navigate = useNavigate();
   const [requests, setRequests] = useState([]);
-  const [cities, setCities] = useState([]);
-  const [types, setTypes] = useState([]);
+  const [cities, setCities] = useState(defaultCities);
+  const [types, setTypes] = useState(defaultTypes);
   const [loading, setLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [cityId, setCityId] = useState("");
@@ -62,10 +75,11 @@ export default function HomePage() {
       }
 
       setRequests(data.requests || []);
-      setCities(data.cities || []);
-      setTypes(data.types || []);
+      setCities(data.cities?.length ? data.cities : defaultCities);
+      setTypes(data.types?.length ? data.types : defaultTypes);
     } catch (error) {
       console.log(error);
+      showToast("Помилка", "Не вдалося завантажити заявки. Перевірте, чи запущений сервер.", "error");
     } finally {
       setLoading(false);
     }
@@ -84,10 +98,18 @@ export default function HomePage() {
 
   const baseList = isCompany
     ? requests.filter((item) => !item.firmId)
-    : requests.filter((item) => myRequestIds.includes(item.id));
+    : requests.filter((item) => {
+        const ownerNames = [user?.name, user?.email].filter(Boolean);
+
+        return (
+          myRequestIds.includes(item.id) ||
+          item.clientEmail === user?.email ||
+          ownerNames.includes(item.clientName)
+        );
+      });
 
   const filteredRequests = baseList.filter((item) => {
-    const matchesSearch = item.title.toLowerCase().includes(search.toLowerCase());
+    const matchesSearch = String(item.title || "").toLowerCase().includes(search.toLowerCase());
     const matchesCity = !cityId || item.cityId === cityId;
     const matchesType = !typeId || item.typeId === typeId;
 
@@ -96,6 +118,13 @@ export default function HomePage() {
 
   const handleCreateRequest = async (event) => {
     event.preventDefault();
+
+    if (!requestForm.title.trim() || !requestForm.description.trim() || !requestForm.cityId || !requestForm.typeId) {
+      showToast("Заповніть форму", "Назва, опис, місто і категорія обов’язкові.", "error");
+      return;
+    }
+
+    setCreating(true);
 
     try {
       const response = await fetch("/requests", {
@@ -112,6 +141,7 @@ export default function HomePage() {
 
       if (!response.ok) {
         console.log(data);
+        showToast("Помилка", data.message || "Не вдалося створити заявку.", "error");
         return;
       }
 
@@ -127,6 +157,9 @@ export default function HomePage() {
       getRequests();
     } catch (error) {
       console.log(error);
+      showToast("Помилка", "Не вдалося створити заявку. Перевірте, чи запущений сервер.", "error");
+    } finally {
+      setCreating(false);
     }
   };
 
@@ -149,6 +182,7 @@ export default function HomePage() {
 
       if (!response.ok) {
         console.log(data);
+        showToast("Помилка", data.message || "Не вдалося надіслати відповідь.", "error");
         return;
       }
 
@@ -160,6 +194,7 @@ export default function HomePage() {
       getRequests();
     } catch (error) {
       console.log(error);
+      showToast("Помилка", "Не вдалося надіслати відповідь.", "error");
     }
   };
 
@@ -194,16 +229,6 @@ export default function HomePage() {
           <span>{isCompany ? "Доступні заявки" : "Мої заявки"}</span>
           <strong>{filteredRequests.length}</strong>
           <p>{isCompany ? "Після простого локального фільтра." : "Створені з цього браузера."}</p>
-        </article>
-        <article className="metric-card">
-          <span>Міста</span>
-          <strong>{cities.length}</strong>
-          <p>Завантажені з `ND_CITY`.</p>
-        </article>
-        <article className="metric-card">
-          <span>Категорії</span>
-          <strong>{types.length}</strong>
-          <p>Завантажені з `TYPEFIRM`.</p>
         </article>
       </section>
 
@@ -265,6 +290,7 @@ export default function HomePage() {
               <span>Назва</span>
               <input
                 type="text"
+                required
                 value={requestForm.title}
                 onChange={(event) => setRequestForm({ ...requestForm, title: event.target.value })}
               />
@@ -274,6 +300,7 @@ export default function HomePage() {
               <span>Опис</span>
               <textarea
                 rows="4"
+                required
                 value={requestForm.description}
                 onChange={(event) =>
                   setRequestForm({ ...requestForm, description: event.target.value })
@@ -285,6 +312,7 @@ export default function HomePage() {
               <span>Ціна</span>
               <input
                 type="number"
+                min="0"
                 value={requestForm.price}
                 onChange={(event) => setRequestForm({ ...requestForm, price: event.target.value })}
               />
@@ -305,6 +333,7 @@ export default function HomePage() {
               <span>Місто</span>
               <select
                 value={requestForm.cityId}
+                required
                 onChange={(event) => setRequestForm({ ...requestForm, cityId: event.target.value })}
               >
                 <option value="">Оберіть місто</option>
@@ -320,6 +349,7 @@ export default function HomePage() {
               <span>Категорія</span>
               <select
                 value={requestForm.typeId}
+                required
                 onChange={(event) => setRequestForm({ ...requestForm, typeId: event.target.value })}
               >
                 <option value="">Оберіть категорію</option>
@@ -331,8 +361,8 @@ export default function HomePage() {
               </select>
             </label>
 
-            <button className="button button--primary" type="submit">
-              Зберегти заявку
+            <button className="button button--primary" type="submit" disabled={creating}>
+              {creating ? "Збереження..." : "Зберегти заявку"}
             </button>
           </form>
         </section>

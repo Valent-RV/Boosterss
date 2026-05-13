@@ -15,7 +15,8 @@ try {
   console.log("Oracle package not found, local mode enabled");
 }
 
-let transporter;
+let transporter = nodemailer.createTransport({ jsonTransport: true });
+
 nodemailer.createTestAccount().then((testAccount) => {
   transporter = nodemailer.createTransport({
     host: "smtp.ethereal.email",
@@ -24,6 +25,8 @@ nodemailer.createTestAccount().then((testAccount) => {
     auth: { user: testAccount.user, pass: testAccount.pass },
   });
   console.log("Тестова пошта готова!");
+}).catch(() => {
+  console.log("Тестова пошта недоступна, листи пишуться у локальний transport");
 });
 
 const __filename = fileURLToPath(import.meta.url);
@@ -38,6 +41,20 @@ const dbConfig = {
   password: process.env.DB_PASSWORD || "NDI",
   connectString: process.env.DB_CONNECT_STRING || "localhost:1521/XE"
 };
+
+const enforceEmailVerification = process.env.ENFORCE_EMAIL_VERIFICATION === "1";
+
+const defaultCities = [
+  { id: "1", name: "Київ" },
+  { id: "2", name: "Львів" },
+  { id: "3", name: "Одеса" }
+];
+
+const defaultTypes = [
+  { id: "1", name: "Прибирання" },
+  { id: "2", name: "Ремонт" },
+  { id: "3", name: "Перевезення" }
+];
 
 let dbReady = false;
 let useLocalData = process.env.USE_LOCAL_DATA === "1" || !oracledb;
@@ -93,16 +110,8 @@ function createLocalSeed() {
         typeId: "2"
       }
     ],
-    cities: [
-      { id: "1", name: "Київ" },
-      { id: "2", name: "Львів" },
-      { id: "3", name: "Одеса" }
-    ],
-    types: [
-      { id: "1", name: "Прибирання" },
-      { id: "2", name: "Ремонт" },
-      { id: "3", name: "Перевезення" }
-    ],
+    cities: defaultCities,
+    types: defaultTypes,
     requests: [
       {
         id: "1001",
@@ -147,7 +156,25 @@ function readLocalDb() {
   ensureLocalDb();
 
   try {
-    return JSON.parse(readFileSync(localDbPath, "utf8"));
+    const data = JSON.parse(readFileSync(localDbPath, "utf8"));
+
+    if (!Array.isArray(data.cities) || !data.cities.length) {
+      data.cities = defaultCities;
+    }
+
+    if (!Array.isArray(data.types) || !data.types.length) {
+      data.types = defaultTypes;
+    }
+
+    if (!Array.isArray(data.requests)) {
+      data.requests = [];
+    }
+
+    if (!Array.isArray(data.responses)) {
+      data.responses = [];
+    }
+
+    return data;
   } catch {
     const seed = createLocalSeed();
     writeFileSync(localDbPath, JSON.stringify(seed, null, 2));
@@ -273,23 +300,32 @@ app.post("/register", async (req, res) => {
       password,
       name: email,
       role: "user",
-      isVerified: false, 
+      isVerified: !enforceEmailVerification,
       verifyToken: verifyToken
     };
 
     data.users.push(user);
     writeLocalDb(data);
 
-    // Відправляємо лист
-    const verifyUrl = `http://localhost:3001/verify-email?token=${verifyToken}`;
-    transporter.sendMail({
-      from: '"Taskero" <noreply@taskero.com>',
-      to: email,
-      subject: "Підтвердження реєстрації",
-      text: `Вітаємо! Перейдіть за посиланням, щоб підтвердити пошту: ${verifyUrl}`
-    }).then(info => console.log(" Лист підтвердження: %s", nodemailer.getTestMessageUrl(info)));
+    if (enforceEmailVerification) {
+      const verifyUrl = `http://localhost:3001/verify-email?token=${verifyToken}`;
+      transporter.sendMail({
+        from: '"Taskero" <noreply@taskero.com>',
+        to: email,
+        subject: "Підтвердження реєстрації",
+        text: `Вітаємо! Перейдіть за посиланням, щоб підтвердити пошту: ${verifyUrl}`
+      }).then(info => console.log(" Лист підтвердження: %s", nodemailer.getTestMessageUrl(info)));
+    }
 
-    return res.status(201).json({ success: true, message: "Зареєстровано! Перевірте пошту." });
+    return res.status(201).json({
+      success: true,
+      message: enforceEmailVerification ? "Зареєстровано! Перевірте пошту." : "Зареєстровано.",
+      user: {
+        email: user.email,
+        name: user.name,
+        role: "user"
+      }
+    });
   }
   
   
@@ -359,7 +395,9 @@ app.post("/login", async (req, res) => {
       return res.status(401).json({ message: "Неправильний логін або пароль." });
     }
     
-    if (!user.isVerified) return res.status(403).json({ message: "Будь ласка, підтвердіть свою пошту!" });
+    if (enforceEmailVerification && user.isVerified === false) {
+      return res.status(403).json({ message: "Будь ласка, підтвердіть свою пошту!" });
+    }
     
     return res.json({
       success: true,
@@ -531,8 +569,8 @@ app.get("/requests", async (req, res) => {
     const data = readLocalDb();
     return res.json({
       requests: getLocalRequests(data, firmId, myResponses),
-      cities: data.cities,
-      types: data.types
+      cities: data.cities.length ? data.cities : defaultCities,
+      types: data.types.length ? data.types : defaultTypes
     });
   }
 
@@ -570,8 +608,10 @@ app.get("/requests", async (req, res) => {
 
     const cities = citiesResult.rows.map(mapCity).filter((item) => item.id && item.name);
     const types = typesResult.rows.map(mapType).filter((item) => item.id && item.name);
+    const cityOptions = cities.length ? cities : defaultCities;
+    const typeOptions = types.length ? types : defaultTypes;
     const responses = responsesResult.rows.map(mapResponse);
-    let requests = requestsResult.rows.map((row) => mapRequest(row, cities, types, responses));
+    let requests = requestsResult.rows.map((row) => mapRequest(row, cityOptions, typeOptions, responses));
 
     if (firmId && myResponses === "1") {
       requests = requests.filter((request) =>
@@ -579,7 +619,7 @@ app.get("/requests", async (req, res) => {
       );
     }
 
-    return res.json({ requests, cities, types });
+    return res.json({ requests, cities: cityOptions, types: typeOptions });
   } catch (error) {
     console.log(error);
     return res.status(500).json({ message: "Помилка сервера." });
@@ -600,14 +640,18 @@ app.post("/requests", async (req, res) => {
   const requestId = Date.now();
   const requestDate = new Date().toISOString();
 
-  if (!title || !description) {
-    return res.status(400).json({ message: "Заповніть назву й опис." });
+  if (!title || !description || !cityId || !typeId) {
+    return res.status(400).json({ message: "Заповніть назву, опис, місто і категорію." });
   }
 
   if (useLocalData || !dbReady) {
     const data = readLocalDb();
     const city = data.cities.find((item) => item.id === cityId);
     const type = data.types.find((item) => item.id === typeId);
+
+    if (!city || !type) {
+      return res.status(400).json({ message: "Оберіть коректне місто і категорію." });
+    }
 
     const request = {
       id: String(requestId),
@@ -616,11 +660,12 @@ app.post("/requests", async (req, res) => {
       price,
       date: requestDate,
       cityId,
-      cityName: city?.name || "Без міста",
+      cityName: city.name,
       typeId,
-      typeName: type?.name || "Без категорії",
+      typeName: type.name,
       firmId: "",
-      clientName
+      clientName,
+      clientEmail: String(req.body.email || "").trim().toLowerCase()
     };
 
     data.requests.unshift(request);

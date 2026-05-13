@@ -18,7 +18,7 @@ export default function ForgotPasswordPage() {
     <AuthFormCard
       title="Відновлення пароля"
       subtitle="У студентській версії це проста заглушка без окремого бекенд-роута."
-      submitLabel="Повернутися до входу"
+      submitLabel="Надіслати"
       disabled={!email.trim()}
       loading={authLoading}
       onSubmit={handleSubmit}

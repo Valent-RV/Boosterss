@@ -23,10 +23,11 @@ export default function CompanyLoginPage() {
         },
         body: JSON.stringify(form)
       });
-      const data = await response.json();
+      const data = await response.json().catch(() => ({}));
 
       if (!response.ok) {
         console.log(data);
+        showToast("Помилка входу", data.message || "Не вдалося увійти як компанія.", "error");
         return;
       }
 
@@ -35,6 +36,7 @@ export default function CompanyLoginPage() {
       navigate("/");
     } catch (error) {
       console.log(error);
+      showToast("Помилка входу", "Сервер не відповідає. Запустіть проєкт через npm run dev.", "error");
     } finally {
       setAuthLoading(false);
     }
