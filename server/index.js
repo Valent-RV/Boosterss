@@ -42,28 +42,28 @@ const dbConfig = {
 app.use(cors());
 app.use(express.json());
 
-function getValue(row, keys, fallback = "") {
+export function getValue(row, keys, fallback = "") {
   for (const key of keys) {
     if (row[key] !== undefined && row[key] !== null) return row[key];
   }
   return fallback;
 }
 
-function mapCity(row) {
+export function mapCity(row) {
   return {
     id: String(getValue(row, ["ID", "CITY_ID", "KODCITY"], "")),
     name: String(getValue(row, ["NAME", "NAME_CITY"], ""))
   };
 }
 
-function mapType(row) {
+export function mapType(row) {
   return {
     id: String(getValue(row, ["ID", "TYPEFIRM_ID"], "")),
     name: String(getValue(row, ["NAME", "NAME_TYPEFIRM"], ""))
   };
 }
 
-function mapResponse(row) {
+export function mapResponse(row) {
   return {
     id: String(getValue(row, ["ID"], "")),
     zamId: String(getValue(row, ["ZAM_ID", "REQUEST_ID"], "")),
@@ -76,7 +76,7 @@ function mapResponse(row) {
   };
 }
 
-function mapRequest(row, cities, types, responses = []) {
+export function mapRequest(row, cities, types, responses = []) {
   const id = String(getValue(row, ["ID"], ""));
   const cityId = String(getValue(row, ["KODCITY"], ""));
   const typeId = String(getValue(row, ["TYPEFIRM"], ""));
@@ -432,7 +432,9 @@ if (existsSync(distPath)) {
   });
 }
 
+if (process.env.NODE_ENV !== 'test') {
 app.listen(port, async () => {
   await createPool();
   console.log(`Server running on http://localhost:${port}`);
 });
+}
